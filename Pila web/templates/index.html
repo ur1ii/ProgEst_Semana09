@@ -1,0 +1,788 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <meta
+        name="description"
+        content="Aplicación interactiva para administrar una pila de datos."
+    >
+
+    <title>Stack Manager | Gestor de pilas</title>
+
+    <!-- Bootstrap 5.3 -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <!-- Bootstrap Icons -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+        rel="stylesheet"
+    >
+</head>
+
+<body class="bg-body-tertiary">
+
+    <!-- Barra de navegación -->
+    <nav class="navbar navbar-dark bg-dark shadow-sm">
+        <div class="container">
+            <a
+                class="navbar-brand fw-bold"
+                href="{{ url_for('index') }}"
+            >
+                <i class="bi bi-stack me-2"></i>
+                Stack Manager
+            </a>
+
+            <span class="navbar-text text-white-50">
+                Estructura de datos LIFO
+            </span>
+        </div>
+    </nav>
+
+    <main class="container py-4 py-lg-5">
+
+        <!-- Encabezado -->
+        <header class="text-center mb-4">
+            <h1 class="fw-bold display-6">
+                Administrador de pilas
+            </h1>
+
+            <p class="text-body-secondary mb-0">
+                Organiza tus elementos con el principio
+                <strong>LIFO</strong>:
+                el último en entrar es el primero en salir.
+            </p>
+        </header>
+
+        <!-- Mensajes de Flask -->
+        <section
+            aria-label="Notificaciones"
+            aria-live="polite"
+        >
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div
+                            class="alert alert-{{ category }} alert-dismissible fade show shadow-sm"
+                            role="alert"
+                        >
+                            <i class="bi bi-info-circle me-2"></i>
+
+                            {{ message }}
+
+                            <button
+                                type="button"
+                                class="btn-close"
+                                data-bs-dismiss="alert"
+                                aria-label="Cerrar"
+                            ></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </section>
+
+        <!-- Indicadores -->
+        <section
+            class="row g-3 mb-4"
+            aria-label="Estado de la pila"
+        >
+
+            <div class="col-12 col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="fs-2 text-primary">
+                                <i class="bi bi-layers"></i>
+                            </div>
+
+                            <div>
+                                <p class="text-body-secondary mb-1">
+                                    Elementos
+                                </p>
+
+                                <h2 class="h3 fw-bold mb-0">
+                                    {{ size }}
+                                    <span class="text-body-secondary fs-6">
+                                        / {{ capacity }}
+                                    </span>
+                                </h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="fs-2 text-success">
+                                <i class="bi bi-speedometer2"></i>
+                            </div>
+
+                            <div>
+                                <p class="text-body-secondary mb-1">
+                                    Capacidad utilizada
+                                </p>
+
+                                <h2 class="h3 fw-bold mb-0">
+                                    {{ ((size / capacity) * 100)|round|int }}%
+                                </h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="fs-2 text-warning">
+                                <i class="bi bi-info-circle"></i>
+                            </div>
+
+                            <div>
+                                <p class="text-body-secondary mb-1">
+                                    Estado
+                                </p>
+
+                                <h2 class="h5 fw-bold mb-0">
+                                    {% if is_empty %}
+                                        Vacía
+                                    {% elif is_full %}
+                                        Llena
+                                    {% else %}
+                                        Disponible
+                                    {% endif %}
+                                </h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <div class="row g-4">
+
+            <!-- Panel de operaciones -->
+            <section class="col-12 col-lg-5">
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-header bg-white border-0 pt-4 px-4">
+                        <h2 class="h4 fw-bold mb-1">
+                            <i class="bi bi-sliders me-2"></i>
+                            Operaciones
+                        </h2>
+
+                        <p class="text-body-secondary small mb-0">
+                            Administra los elementos de tu pila.
+                        </p>
+                    </div>
+
+                    <div class="card-body p-4">
+
+                        <!-- Cambiar capacidad -->
+                        <form
+                            action="{{ url_for('change_capacity') }}"
+                            method="POST"
+                            class="mb-4"
+                            id="capacityForm"
+                        >
+                            <label
+                                for="capacity"
+                                class="form-label fw-semibold"
+                            >
+                                Capacidad máxima
+                            </label>
+
+                            <div class="input-group">
+                                <input
+                                    type="number"
+                                    class="form-control"
+                                    id="capacity"
+                                    name="capacity"
+                                    min="1"
+                                    max="10000"
+                                    step="1"
+                                    value="{{ capacity }}"
+                                    required
+                                >
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-outline-primary"
+                                >
+                                    Aplicar
+                                </button>
+                            </div>
+
+                            <div class="form-text">
+                                No puede ser menor que los elementos actuales.
+                            </div>
+                        </form>
+
+                        <hr>
+
+                        <!-- Apilar -->
+                        <form
+                            action="{{ url_for('push') }}"
+                            method="POST"
+                            id="pushForm"
+                        >
+                            <label
+                                for="item"
+                                class="form-label fw-semibold"
+                            >
+                                Nuevo elemento
+                            </label>
+
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">
+                                    <i class="bi bi-plus-lg"></i>
+                                </span>
+
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    id="item"
+                                    name="item"
+                                    maxlength="100"
+                                    placeholder="Ej. Python, 25, Hola..."
+                                    autocomplete="off"
+                                    required
+                                    {% if is_full %}disabled{% endif %}
+                                >
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-primary"
+                                    {% if is_full %}disabled{% endif %}
+                                >
+                                    Apilar
+                                </button>
+                            </div>
+
+                            <div class="form-text mb-4">
+                                Puedes introducir texto o números.
+                                Máximo 100 caracteres.
+                            </div>
+                        </form>
+
+                        <!-- Consultar tope -->
+                        <div class="mb-4">
+                            <h3 class="h6 fw-bold">
+                                Consultar el tope
+                            </h3>
+
+                            <p class="small text-body-secondary">
+                                Consulta el último elemento agregado
+                                sin eliminarlo.
+                            </p>
+
+                            <form
+                                action="{{ url_for('peek') }}"
+                                method="POST"
+                            >
+                                <button
+                                    type="submit"
+                                    class="btn btn-outline-info w-100"
+                                >
+                                    <i class="bi bi-eye me-2"></i>
+                                    Consultar tope
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Desapilar -->
+                        <div class="mb-4">
+                            <h3 class="h6 fw-bold">
+                                Desapilar
+                            </h3>
+
+                            <p class="small text-body-secondary">
+                                Elimina el elemento que está en el tope.
+                            </p>
+
+                            <form
+                                action="{{ url_for('pop') }}"
+                                method="POST"
+                                id="popForm"
+                            >
+                                <button
+                                    type="submit"
+                                    class="btn btn-outline-danger w-100"
+                                    {% if is_empty %}disabled{% endif %}
+                                >
+                                    <i class="bi bi-dash-lg me-2"></i>
+                                    Desapilar
+                                </button>
+                            </form>
+                        </div>
+
+                        <hr>
+
+                        <!-- Vaciar -->
+                        <form
+                            action="{{ url_for('clear') }}"
+                            method="POST"
+                            id="clearForm"
+                        >
+                            <button
+                                type="submit"
+                                class="btn btn-outline-secondary w-100"
+                                {% if is_empty %}disabled{% endif %}
+                            >
+                                <i class="bi bi-trash me-2"></i>
+                                Vaciar pila
+                            </button>
+                        </form>
+
+                    </div>
+                </div>
+            </section>
+
+            <!-- Representación visual -->
+            <section class="col-12 col-lg-7">
+                <div class="card border-0 shadow-sm h-100">
+
+                    <div class="card-header bg-white border-0 pt-4 px-4">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+
+                            <div>
+                                <h2 class="h4 fw-bold mb-1">
+                                    <i class="bi bi-boxes me-2"></i>
+                                    Representación de la pila
+                                </h2>
+
+                                <p class="text-body-secondary small mb-0">
+                                    El elemento superior es el tope.
+                                </p>
+                            </div>
+
+                            <span class="badge text-bg-primary">
+                                LIFO
+                            </span>
+
+                        </div>
+                    </div>
+
+                    <div class="card-body p-4">
+
+                        <!-- Barra de progreso -->
+                        <div
+                            class="progress mb-3"
+                            role="progressbar"
+                            aria-label="Capacidad ocupada"
+                            aria-valuenow="{{ size }}"
+                            aria-valuemin="0"
+                            aria-valuemax="{{ capacity }}"
+                        >
+                            <div
+                                class="progress-bar
+                                {% if is_full %}
+                                    bg-danger
+                                {% else %}
+                                    bg-primary
+                                {% endif %}"
+                                style="width: {{ (size / capacity * 100)|round(2) }}%;"
+                            ></div>
+                        </div>
+
+                        <div class="d-flex justify-content-between small text-body-secondary mb-4">
+                            <span>0 elementos</span>
+                            <span>{{ capacity }} elementos</span>
+                        </div>
+
+                        <!-- Contenedor de la pila -->
+                        <div class="border rounded-3 bg-body-tertiary p-3">
+
+                            <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
+                                <i class="bi bi-arrow-down-circle text-primary"></i>
+
+                                <span class="small fw-semibold">
+                                    TOPE DE LA PILA
+                                </span>
+                            </div>
+
+                            <div
+                                class="d-flex flex-column-reverse align-items-center gap-2"
+                                id="stackContainer"
+                            >
+
+                                {% if stack_items %}
+
+                                    {% for item in stack_items %}
+
+                                        <div
+                                            class="card border-primary-subtle shadow-sm w-100"
+                                            style="max-width: 320px;"
+                                        >
+                                            <div class="card-body py-3 px-3">
+                                                <div class="d-flex justify-content-between align-items-center gap-3">
+
+                                                    <span class="text-body-secondary small">
+                                                        {% if loop.first %}
+                                                            TOPE
+                                                        {% else %}
+                                                            Elemento {{ loop.length - loop.index0 }}
+                                                        {% endif %}
+                                                    </span>
+
+                                                    <span class="fw-semibold text-break text-end">
+                                                        {{ item }}
+                                                    </span>
+
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    {% endfor %}
+
+                                {% else %}
+
+                                    <div class="text-center py-5">
+                                        <i class="bi bi-inbox display-4 text-body-tertiary"></i>
+
+                                        <h3 class="h5 mt-3">
+                                            La pila está vacía
+                                        </h3>
+
+                                        <p class="text-body-secondary small mb-0">
+                                            Agrega un elemento para comenzar.
+                                        </p>
+                                    </div>
+
+                                {% endif %}
+
+                            </div>
+
+                            <div class="d-flex justify-content-center align-items-center gap-2 mt-3">
+                                <i class="bi bi-arrow-down-circle text-secondary"></i>
+
+                                <span class="small text-body-secondary">
+                                    FONDO DE LA PILA
+                                </span>
+                            </div>
+
+                        </div>
+
+                        <!-- Información del tope -->
+                        <div class="alert alert-light border mt-4 mb-0">
+
+                            <div class="d-flex align-items-center gap-3">
+
+                                <i class="bi bi-pin-angle fs-3 text-primary"></i>
+
+                                <div>
+                                    <h3 class="h6 fw-bold mb-1">
+                                        Elemento actual del tope
+                                    </h3>
+
+                                    <p class="mb-0 text-break">
+                                        {% if is_empty %}
+                                            No hay elementos para consultar.
+                                        {% else %}
+                                            {{ top_item }}
+                                        {% endif %}
+                                    </p>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- Explicación educativa -->
+        <section class="card border-0 shadow-sm mt-4">
+            <div class="card-body p-4">
+
+                <h2 class="h5 fw-bold">
+                    <i class="bi bi-lightbulb me-2 text-warning"></i>
+                    ¿Cómo funciona una pila?
+                </h2>
+
+                <div class="row g-3 mt-1">
+
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 border rounded-3 h-100">
+                            <h3 class="h6 fw-bold">
+                                <i class="bi bi-plus-circle me-2 text-success"></i>
+                                Push
+                            </h3>
+
+                            <p class="small text-body-secondary mb-0">
+                                Agrega un elemento en la parte superior.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 border rounded-3 h-100">
+                            <h3 class="h6 fw-bold">
+                                <i class="bi bi-dash-circle me-2 text-danger"></i>
+                                Pop
+                            </h3>
+
+                            <p class="small text-body-secondary mb-0">
+                                Elimina el último elemento agregado.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 border rounded-3 h-100">
+                            <h3 class="h6 fw-bold">
+                                <i class="bi bi-eye me-2 text-info"></i>
+                                Peek
+                            </h3>
+
+                            <p class="small text-body-secondary mb-0">
+                                Consulta el tope sin modificar la pila.
+                            </p>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <footer class="text-center text-body-secondary small py-4">
+            Stack Manager · Desarrollado con Python, Flask y Bootstrap.
+        </footer>
+
+    </main>
+
+    <!-- Confirmación de acciones -->
+    <div
+        class="modal fade"
+        id="confirmModal"
+        tabindex="-1"
+        aria-labelledby="confirmModalLabel"
+        aria-hidden="true"
+    >
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h2
+                        class="modal-title fs-5"
+                        id="confirmModalLabel"
+                    >
+                        Confirmar operación
+                    </h2>
+
+                    <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Cerrar"
+                    ></button>
+                </div>
+
+                <div class="modal-body" id="confirmModalMessage">
+                    ¿Deseas continuar?
+                </div>
+
+                <div class="modal-footer">
+
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal"
+                    >
+                        Cancelar
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn btn-danger"
+                        id="confirmActionButton"
+                    >
+                        Confirmar
+                    </button>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JavaScript -->
+    <script
+        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    ></script>
+
+    <!-- JavaScript de la aplicación -->
+    <script>
+        "use strict";
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const itemInput = document.getElementById("item");
+            const pushForm = document.getElementById("pushForm");
+
+            const confirmModalElement =
+                document.getElementById("confirmModal");
+
+            const confirmModalMessage =
+                document.getElementById("confirmModalMessage");
+
+            const confirmActionButton =
+                document.getElementById("confirmActionButton");
+
+            const confirmModal =
+                new bootstrap.Modal(confirmModalElement);
+
+            let pendingForm = null;
+
+            // Validación del formulario de apilado.
+            pushForm.addEventListener("submit", (event) => {
+                if (!itemInput.value.trim()) {
+                    event.preventDefault();
+
+                    itemInput.value = "";
+                    itemInput.focus();
+
+                    itemInput.setCustomValidity(
+                        "Introduce un elemento válido."
+                    );
+
+                    itemInput.reportValidity();
+
+                    return;
+                }
+
+                itemInput.setCustomValidity("");
+            });
+
+            itemInput.addEventListener("input", () => {
+                itemInput.setCustomValidity("");
+            });
+
+            // Solicita confirmación antes de vaciar la pila.
+            document
+                .getElementById("clearForm")
+                .addEventListener("submit", (event) => {
+                    event.preventDefault();
+
+                    pendingForm = event.currentTarget;
+
+                    confirmModalMessage.textContent =
+                        "¿Estás seguro de que deseas eliminar todos " +
+                        "los elementos de la pila? Esta operación " +
+                        "no se puede deshacer.";
+
+                    confirmActionButton.textContent =
+                        "Sí, vaciar pila";
+
+                    confirmModal.show();
+                });
+
+            // Confirmación antes de reducir la capacidad.
+            document
+                .getElementById("capacityForm")
+                .addEventListener("submit", (event) => {
+                    const capacityInput =
+                        document.getElementById("capacity");
+
+                    const newCapacity =
+                        Number(capacityInput.value);
+
+                    if (
+                        !Number.isInteger(newCapacity) ||
+                        newCapacity < 1 ||
+                        newCapacity > 10000
+                    ) {
+                        event.preventDefault();
+
+                        capacityInput.setCustomValidity(
+                            "Introduce un entero entre 1 y 10000."
+                        );
+
+                        capacityInput.reportValidity();
+
+                        return;
+                    }
+
+                    capacityInput.setCustomValidity("");
+
+                    if (
+                        newCapacity < {{ size }}
+                    ) {
+                        event.preventDefault();
+
+                        pendingForm = event.currentTarget;
+
+                        confirmModalMessage.textContent =
+                            "La capacidad solicitada es menor que " +
+                            "la cantidad de elementos actuales. " +
+                            "La operación será rechazada para evitar " +
+                            "la pérdida de datos.";
+
+                        confirmActionButton.textContent = "Entendido";
+
+                        // En este caso, confirmar solo cierra el aviso.
+                        confirmActionButton.dataset.noticeOnly = "true";
+
+                        confirmModal.show();
+                    }
+                });
+
+            // Ejecuta la operación confirmada.
+            confirmActionButton.addEventListener("click", () => {
+                if (
+                    confirmActionButton.dataset.noticeOnly === "true"
+                ) {
+                    delete confirmActionButton.dataset.noticeOnly;
+
+                    pendingForm = null;
+                    confirmModal.hide();
+
+                    return;
+                }
+
+                if (pendingForm) {
+                    pendingForm.submit();
+                }
+
+                pendingForm = null;
+                confirmModal.hide();
+            });
+
+            confirmModalElement.addEventListener(
+                "hidden.bs.modal",
+                () => {
+                    pendingForm = null;
+
+                    delete confirmActionButton.dataset.noticeOnly;
+
+                    confirmActionButton.textContent = "Confirmar";
+                }
+            );
+
+            // Enfoca el campo de entrada cuando está disponible.
+            if (itemInput && !itemInput.disabled) {
+                itemInput.focus();
+            }
+        });
+    </script>
+
+</body>
+</html>
+```
